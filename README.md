@@ -91,4 +91,10 @@ print(result["level"])  # "low"
 
 ## License
 
-MIT License. See [LICENSE](LICENSE) for details.
+Apache License 2.0. See [LICENSE](LICENSE) and [NOTICE](NOTICE) for details.
+
+If you use this software, please include the NOTICE file and attribute:
+
+> Powered by [Mwana AI Engine](https://github.com/Mwana-Health/mwana-ai-engine)
+
+"Mwana Health" and the Mwana Health logo are trademarks of Mwana Technologies (Pvt) Ltd. See NOTICE for trademark policy.
