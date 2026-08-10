@@ -90,6 +90,50 @@ _DANGER_SIGNS: dict[Stage, list[dict]] = {
         {"symptom": "high_fever", "description": "High fever that does not come down", "urgency": "YELLOW"},
         {"symptom": "persistent_diarrhea", "description": "Diarrhea lasting more than 14 days", "urgency": "YELLOW"},
     ],
+    # SCHOOL_AGE (6-12y): GENERAL danger signs only. IMCI breathing-rate and
+    # age cutoffs are NOT applied to this age group. RED = go now; YELLOW =
+    # clinic soon. pending_clinical_signoff: awaits advisory panel review.
+    Stage.SCHOOL_AGE: [
+        {"symptom": "severe_difficulty_breathing", "description": "Severe difficulty breathing, gasping, or blue lips", "urgency": "RED"},
+        {"symptom": "convulsions", "description": "Fits, jerking, or convulsions", "urgency": "RED"},
+        {"symptom": "unresponsive", "description": "Unconscious, cannot be woken, or very confused", "urgency": "RED"},
+        {"symptom": "severe_dehydration", "description": "Not passing urine, very dry mouth, sunken eyes, unable to drink", "urgency": "RED"},
+        {"symptom": "high_persistent_fever", "description": "Very high fever that will not come down, with a stiff neck or a rash that does not fade", "urgency": "RED"},
+        {"symptom": "severe_injury", "description": "Serious injury, heavy bleeding that will not stop, a deep burn, or a bad fall", "urgency": "RED"},
+        {"symptom": "poisoning", "description": "Swallowed poison, paraffin, medicine, or chemicals", "urgency": "RED"},
+        {"symptom": "drowning_signs", "description": "Coughing, difficulty breathing, or blue lips after being in water", "urgency": "RED"},
+        {"symptom": "severe_abdominal_pain", "description": "Severe stomach pain that does not ease", "urgency": "RED"},
+        {"symptom": "bloody_diarrhea", "description": "Blood in the stool or vomit", "urgency": "RED"},
+        {"symptom": "persistent_fever", "description": "Fever lasting more than 3 days", "urgency": "YELLOW"},
+        {"symptom": "persistent_diarrhea", "description": "Diarrhoea or vomiting lasting more than a few days", "urgency": "YELLOW"},
+        {"symptom": "vision_concern", "description": "Trouble seeing the board at school, squinting, or headaches when reading", "urgency": "YELLOW"},
+        {"symptom": "hearing_concern", "description": "Not hearing well, asking to repeat things, or ear pain and discharge", "urgency": "YELLOW"},
+        {"symptom": "poor_weight_gain", "description": "Losing weight, or much thinner or heavier than other children the same age", "urgency": "YELLOW"},
+        {"symptom": "learning_or_mood_concern", "description": "Struggling at school, very withdrawn, or a big change in mood or behaviour", "urgency": "YELLOW"},
+        {"symptom": "persistent_cough", "description": "Cough lasting more than 2 weeks", "urgency": "YELLOW"},
+    ],
+    # ADOLESCENT (13-17y): GENERAL danger signs only. Conservative wording;
+    # emotional-wellbeing items signpost to a health worker/caregiver. No IMCI
+    # cutoffs. pending_clinical_signoff: awaits advisory panel review.
+    Stage.ADOLESCENT: [
+        {"symptom": "severe_difficulty_breathing", "description": "Severe difficulty breathing, gasping, or blue lips", "urgency": "RED"},
+        {"symptom": "convulsions", "description": "Fits, jerking, or convulsions", "urgency": "RED"},
+        {"symptom": "unresponsive", "description": "Fainting that does not recover, unconscious, or very confused", "urgency": "RED"},
+        {"symptom": "severe_dehydration", "description": "Not passing urine, very dry mouth, unable to keep fluids down", "urgency": "RED"},
+        {"symptom": "high_persistent_fever", "description": "Very high fever that will not come down, with a stiff neck or a rash that does not fade", "urgency": "RED"},
+        {"symptom": "severe_injury", "description": "Serious injury, heavy bleeding that will not stop, a deep burn, or a bad fall", "urgency": "RED"},
+        {"symptom": "poisoning", "description": "Swallowed poison, medicine, or chemicals", "urgency": "RED"},
+        {"symptom": "self_harm_thoughts", "description": "Thoughts of harming oneself or not wanting to live", "urgency": "RED"},
+        {"symptom": "severe_abdominal_pain", "description": "Severe stomach pain that does not ease", "urgency": "RED"},
+        {"symptom": "chest_pain", "description": "Severe chest pain or a very fast, pounding heartbeat", "urgency": "RED"},
+        {"symptom": "heavy_bleeding", "description": "Very heavy or non-stop bleeding, including very heavy periods with dizziness", "urgency": "RED"},
+        {"symptom": "persistent_fever", "description": "Fever lasting more than 3 days", "urgency": "YELLOW"},
+        {"symptom": "persistent_cough", "description": "Cough lasting more than 2 weeks", "urgency": "YELLOW"},
+        {"symptom": "mood_or_wellbeing_concern", "description": "Feeling very sad, anxious, or overwhelmed for two weeks or more", "urgency": "YELLOW"},
+        {"symptom": "nutrition_concern", "description": "Losing weight, always tired, very pale, or eating very little", "urgency": "YELLOW"},
+        {"symptom": "menstrual_concern", "description": "Very painful, very heavy, or missed periods that worry you", "urgency": "YELLOW"},
+        {"symptom": "vision_concern", "description": "Trouble seeing, squinting, or frequent headaches", "urgency": "YELLOW"},
+    ],
 }
 
 # Mapping of common symptom phrases to canonical symptom identifiers.
@@ -148,6 +192,33 @@ _SYMPTOM_ALIASES: dict[str, str] = {
     "squinting": "vision_concern",
     "not hearing": "hearing_concern",
     "deaf": "hearing_concern",
+    # School-age and adolescent general danger signs
+    "difficulty breathing": "severe_difficulty_breathing",
+    "trouble breathing": "severe_difficulty_breathing",
+    "gasping": "severe_difficulty_breathing",
+    "unconscious": "unresponsive",
+    "will not wake": "unresponsive",
+    "cannot wake": "unresponsive",
+    "fainted": "unresponsive",
+    "confused": "unresponsive",
+    "stiff neck": "high_persistent_fever",
+    "rash that does not fade": "high_persistent_fever",
+    "serious injury": "severe_injury",
+    "bad fall": "severe_injury",
+    "heavy bleeding": "heavy_bleeding",
+    "bleeding a lot": "heavy_bleeding",
+    "stomach pain": "severe_abdominal_pain",
+    "belly pain": "severe_abdominal_pain",
+    "chest pain": "chest_pain",
+    "wants to die": "self_harm_thoughts",
+    "harm myself": "self_harm_thoughts",
+    "hurt myself": "self_harm_thoughts",
+    "very sad": "mood_or_wellbeing_concern",
+    "depressed": "mood_or_wellbeing_concern",
+    "anxious": "mood_or_wellbeing_concern",
+    "painful periods": "menstrual_concern",
+    "heavy periods": "menstrual_concern",
+    "missed period": "menstrual_concern",
 }
 
 
@@ -177,8 +248,8 @@ class DangerSignDetector:
 
         Example:
             >>> signs = DangerSignDetector.get_danger_signs(Stage.PREGNANT)
-            >>> [s["symptom"] for s in signs if s["urgency"] == "RED"]
-            ['severe_headache', 'blurred_vision', ...]
+            >>> [s["symptom"] for s in signs if s["urgency"] == "RED"][0]
+            'severe_headache'
         """
         return list(_DANGER_SIGNS.get(stage, []))
 
@@ -201,8 +272,8 @@ class DangerSignDetector:
             ...     ["fits", "not feeding"],
             ...     Stage.NEWBORN,
             ... )
-            >>> result.level
-            TriageLevel.RED
+            >>> result.level.value
+            'red'
         """
         stage_signs = _DANGER_SIGNS.get(stage, [])
         sign_map: dict[str, dict] = {s["symptom"]: s for s in stage_signs}

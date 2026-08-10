@@ -94,7 +94,7 @@ _FEEDING_GUIDELINES: list[dict] = [
     },
     {
         "min_months": 24,
-        "max_months": 60,
+        "max_months": 59,
         "description": "Full family diet",
         "meals_per_day": "3 meals + 1-2 snacks",
         "texture": "Family foods, age-appropriate portions",
@@ -106,6 +106,40 @@ _FEEDING_GUIDELINES: list[dict] = [
             "Ensure clean water for drinking",
             "Include fruits and vegetables daily",
             "Give protein-rich foods (eggs, beans, kapenta, meat) daily",
+        ],
+    },
+    # School-age (6-12y, 72-155 months). Guidance, pending clinical sign-off.
+    {
+        "min_months": 72,
+        "max_months": 155,
+        "description": "Balanced meals for a growing, active school-age child",
+        "meals_per_day": "3 meals + 1-2 healthy snacks",
+        "texture": "Family foods",
+        "amount_per_meal": "Portions that satisfy without over-filling; let the child's appetite guide",
+        "key_messages": [
+            "Serve a variety of foods each day: sadza or grains, beans or meat or eggs, vegetables, and fruit",
+            "Give a good breakfast so your child can concentrate at school",
+            "Send a healthy packed snack or lunch where possible (fruit, boiled egg, groundnuts, leftover sadza and relish)",
+            "Limit sweets, fizzy drinks, and chips; offer clean water instead",
+            "Include an iron-rich food often (beans, green leafy vegetables, meat, liver, kapenta)",
+            "Encourage handwashing with soap before eating",
+        ],
+    },
+    # Adolescent (13-17y, 156-215 months). Conservative guidance, sign-off pending.
+    {
+        "min_months": 156,
+        "max_months": 215,
+        "description": "Balanced nutrition to support the adolescent growth spurt",
+        "meals_per_day": "3 meals + healthy snacks as needed",
+        "texture": "Family foods",
+        "amount_per_meal": "Larger portions than younger children; adolescents need more energy while growing",
+        "key_messages": [
+            "Adolescents grow quickly and need enough energy, protein, fruit, and vegetables",
+            "Girls need extra iron once periods start: beans, green leafy vegetables, meat, liver, and kapenta help prevent anaemia",
+            "Do not skip meals, especially breakfast; it supports concentration and mood",
+            "Limit sweets, fizzy drinks, and fried foods; choose water and fruit",
+            "Include calcium foods (milk, sour milk, small dried fish eaten with bones) for growing bones",
+            "If the young person is very tired, very pale, or eating very little, talk to a health worker",
         ],
     },
 ]
@@ -253,10 +287,12 @@ class NutritionAdvisor:
             amount_per_meal, key_messages, and breastfeeding_advice.
 
         Example:
-            >>> NutritionAdvisor.get_feeding_guidance(3)
-            {'description': 'Exclusive breastfeeding', ...}
-            >>> NutritionAdvisor.get_feeding_guidance(8)
-            {'description': 'Introduction of complementary foods + breastfeeding', ...}
+            >>> NutritionAdvisor.get_feeding_guidance(3)["description"]
+            'Exclusive breastfeeding'
+            >>> NutritionAdvisor.get_feeding_guidance(8)["description"]
+            'Introduction of complementary foods + breastfeeding'
+            >>> NutritionAdvisor.get_feeding_guidance(96)["description"]
+            'Balanced meals for a growing, active school-age child'
         """
         guideline = None
         for g in _FEEDING_GUIDELINES:
@@ -291,13 +327,15 @@ class NutritionAdvisor:
                 "foods until at least 2 years of age. Breastmilk continues to "
                 "provide important nutrients and protection against illness."
             )
-        elif child_age_months >= 6 and bf_status in ("exclusive", "complementary"):
+        elif 6 <= child_age_months < 24 and bf_status in ("exclusive", "complementary"):
             result["breastfeeding_advice"] = (
                 "Continue breastfeeding on demand alongside complementary foods. "
                 "Breastmilk still provides up to half of a child's energy needs "
                 "between 6-12 months."
             )
         else:
+            # Toddler and older (including school-age and adolescent): no
+            # breastfeeding message, just diverse-diet guidance.
             result["breastfeeding_advice"] = (
                 "Ensure the child receives a nutritious and diverse diet."
             )
@@ -429,7 +467,7 @@ class NutritionAdvisor:
 
         Example:
             >>> guidance = NutritionAdvisor.get_breastfeeding_troubleshooting("low_supply")
-            >>> print(guidance["solutions"][0])
+            >>> guidance["solutions"][0]
             'Breastfeed more frequently - supply increases with demand'
         """
         problem_key = problem.lower().strip()
@@ -440,3 +478,80 @@ class NutritionAdvisor:
                 f"Available problems: {available}"
             )
         return dict(_BREASTFEEDING_PROBLEMS[problem_key])
+
+    @staticmethod
+    def get_school_meal_guidance() -> dict:
+        """Get guidance for feeding a school-age child (6-12y).
+
+        Covers breakfast, packed snacks/lunch using local foods, and limiting
+        sugary foods. pending_clinical_signoff: awaits advisory panel review.
+
+        Returns:
+            Dict with key_messages and local_ideas.
+
+        Example:
+            >>> g = NutritionAdvisor.get_school_meal_guidance()
+            >>> "breakfast" in g["key_messages"][0].lower()
+            True
+        """
+        return {
+            "key_messages": [
+                "A good breakfast helps your child concentrate at school (bota with groundnut butter, bread with egg, or leftover sadza and relish)",
+                "Where possible, send a healthy packed snack or lunch: fruit, a boiled egg, groundnuts, or sadza and vegetables",
+                "Offer clean water rather than fizzy drinks or sweetened juice",
+                "Include an iron-rich food often (beans, muriwo, meat, liver, or kapenta)",
+                "Limit sweets and chips, especially on the way to and from school",
+            ],
+            "local_ideas": [
+                "Boiled egg and a banana",
+                "Groundnuts (dovi) and fruit",
+                "Sadza with muriwo and beans",
+                "Bota with groundnut butter",
+            ],
+            "pending_clinical_signoff": True,
+        }
+
+    @staticmethod
+    def get_adolescent_iron_guidance(is_girl: bool = True) -> dict:
+        """Get iron-nutrition guidance for adolescents (13-17y).
+
+        Girls need extra iron once menstruation begins, to help prevent
+        anaemia. This returns local iron-rich food ideas and a signpost to a
+        health worker if anaemia signs are present. This is dietary guidance,
+        NOT a diagnosis. pending_clinical_signoff: awaits advisory panel review.
+
+        Args:
+            is_girl: Whether the adolescent is a girl (extra iron emphasis).
+
+        Returns:
+            Dict with key_messages, iron_rich_foods, and when_to_seek_help.
+
+        Example:
+            >>> g = NutritionAdvisor.get_adolescent_iron_guidance(is_girl=True)
+            >>> "beans" in " ".join(g["iron_rich_foods"]).lower()
+            True
+        """
+        messages = [
+            "Iron helps carry oxygen in the blood and supports energy and concentration",
+            "Eat iron-rich foods regularly, together with vitamin-C foods (like fruit) which help the body absorb iron",
+        ]
+        if is_girl:
+            messages.insert(
+                0,
+                "Girls lose iron during periods and need extra iron-rich foods to help prevent anaemia",
+            )
+        return {
+            "key_messages": messages,
+            "iron_rich_foods": [
+                "Beans and other legumes (nyemba)",
+                "Green leafy vegetables (muriwo: rape, covo, spinach)",
+                "Meat, chicken, and especially liver (chiropa)",
+                "Kapenta (dried small fish)",
+                "Mopane worms (madora)",
+            ],
+            "when_to_seek_help": (
+                "If the young person is often very tired, dizzy, breathless, "
+                "or very pale, visit a health worker to check for anaemia."
+            ),
+            "pending_clinical_signoff": True,
+        }

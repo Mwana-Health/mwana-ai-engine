@@ -3,6 +3,13 @@
 Provides simplified WHO z-score approximations for weight-for-age,
 height-for-age, and weight-for-height, plus MUAC classification
 and growth faltering detection.
+
+The z-score reference data covers 0-60 months only (WHO Child Growth
+Standards, 2006). Growth for children 5-19 years uses a DIFFERENT WHO
+standard (BMI-for-age, 2007), which is not bundled here. To avoid
+misclassification, ``assess_growth`` for children aged 60 months and older
+records the measurements WITHOUT a z-score classification and flags them for
+clinical review, rather than applying the under-5 standard out of range.
 """
 
 from __future__ import annotations
@@ -159,8 +166,8 @@ class GrowthMonitor:
         ...     age_months=6,
         ...     gender="male",
         ... )
-        >>> assessment.nutrition_status
-        NutritionStatus.NORMAL
+        >>> assessment.nutrition_status.value
+        'normal'
     """
 
     @staticmethod
@@ -179,18 +186,81 @@ class GrowthMonitor:
             MUACStatus classification.
 
         Example:
-            >>> GrowthMonitor.classify_muac(13.0)
-            MUACStatus.GREEN
-            >>> GrowthMonitor.classify_muac(12.0)
-            MUACStatus.YELLOW
-            >>> GrowthMonitor.classify_muac(11.0)
-            MUACStatus.RED
+            >>> GrowthMonitor.classify_muac(13.0).value
+            'green'
+            >>> GrowthMonitor.classify_muac(12.0).value
+            'yellow'
+            >>> GrowthMonitor.classify_muac(11.0).value
+            'red'
         """
         if muac_cm >= 12.5:
             return MUACStatus.GREEN
         if muac_cm >= 11.5:
             return MUACStatus.YELLOW
         return MUACStatus.RED
+
+    @staticmethod
+    def record_without_classification(
+        weight_grams: int,
+        height_cm: float,
+        age_months: int,
+        muac_cm: float | None = None,
+    ) -> GrowthAssessment:
+        """Record growth for a child aged 5-19 years without z-score classes.
+
+        The bundled WHO reference data is for 0-60 months only. Children 5-19
+        years are assessed against WHO BMI-for-age (a different standard not
+        bundled here). To avoid misclassification, this records the raw
+        measurements and BMI (for information only) and recommends clinical
+        review, without assigning under-5 z-scores or a nutrition status.
+
+        Args:
+            weight_grams: Child's weight in grams.
+            height_cm: Child's height in centimeters.
+            age_months: Child's age in months (>= 60).
+            muac_cm: MUAC in cm (recorded but NOT classified for this age).
+
+        Returns:
+            GrowthAssessment with z-scores set to 0.0 (not applicable),
+            nutrition_status NORMAL as a neutral placeholder, muac_status None
+            (not classified), and an interpretation flagging clinical review.
+
+        Example:
+            >>> monitor = GrowthMonitor()
+            >>> result = monitor.record_without_classification(
+            ...     weight_grams=26000, height_cm=128.0, age_months=96,
+            ... )
+            >>> "clinical review" in result.interpretation.lower()
+            True
+            >>> result.muac_status is None
+            True
+        """
+        weight_kg = weight_grams / 1000.0
+        height_m = height_cm / 100.0
+        bmi = weight_kg / (height_m * height_m) if height_m > 0 else 0.0
+        years = age_months // 12
+
+        interpretation = (
+            f"Recorded weight {weight_kg:.1f} kg and height {height_cm:.0f} cm "
+            f"for a child aged about {years} years (BMI {bmi:.1f}). "
+            "For children 5-19 years, growth is assessed against WHO "
+            "BMI-for-age, which is not applied automatically here. "
+            "Clinical review is recommended to interpret this measurement."
+        )
+        recommendations = [
+            "Take this weight and height record to a health check so a health "
+            "worker can plot it on the correct 5-19 year growth chart.",
+            "Encourage balanced meals, regular activity, and enough rest.",
+        ]
+        return GrowthAssessment(
+            weight_for_age_z=0.0,
+            height_for_age_z=0.0,
+            weight_for_height_z=0.0,
+            muac_status=None,
+            nutrition_status=NutritionStatus.NORMAL,
+            interpretation=interpretation,
+            recommendations=recommendations,
+        )
 
     @staticmethod
     def assess_growth(
@@ -215,14 +285,25 @@ class GrowthMonitor:
         Example:
             >>> monitor = GrowthMonitor()
             >>> result = monitor.assess_growth(
-            ...     weight_grams=5000,
-            ...     height_cm=55.0,
+            ...     weight_grams=5800,
+            ...     height_cm=59.8,
             ...     age_months=3,
             ...     gender="female",
             ... )
             >>> result.interpretation
             'Growth is within normal range'
         """
+        # The bundled WHO reference data is for 0-60 months only. For older
+        # children (5-19y), WHO uses BMI-for-age, a different standard that is
+        # not applied here. Record the measurement without classification.
+        if age_months >= 60:
+            return GrowthMonitor.record_without_classification(
+                weight_grams=weight_grams,
+                height_cm=height_cm,
+                age_months=age_months,
+                muac_cm=muac_cm,
+            )
+
         weight_kg = weight_grams / 1000.0
         gender_lower = gender.lower()
 
@@ -350,7 +431,16 @@ class GrowthMonitor:
             List of actionable recommendations.
 
         Example:
-            >>> recs = GrowthMonitor.get_recommendations(assessment, Stage.INFANT)
+            >>> from mwana_ai_engine import NutritionStatus, MUACStatus
+            >>> a = GrowthAssessment(
+            ...     weight_for_age_z=0.0, height_for_age_z=0.0,
+            ...     weight_for_height_z=0.0, muac_status=MUACStatus.GREEN,
+            ...     nutrition_status=NutritionStatus.NORMAL,
+            ...     interpretation="Growth is within normal range",
+            ... )
+            >>> recs = GrowthMonitor.get_recommendations(a, Stage.INFANT)
+            >>> len(recs) > 0
+            True
         """
         recommendations: list[str] = []
 
@@ -580,4 +670,8 @@ def _stage_from_age(age_months: int) -> Stage:
         return Stage.INFANT
     if age_months < 36:
         return Stage.TODDLER
-    return Stage.EARLY_CHILDHOOD
+    if age_months < 72:
+        return Stage.EARLY_CHILDHOOD
+    if age_months < 156:
+        return Stage.SCHOOL_AGE
+    return Stage.ADOLESCENT

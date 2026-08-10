@@ -1,7 +1,8 @@
 """Stage management for maternal-child health lifecycle.
 
 Handles automatic determination and transitions between care stages:
-PREGNANT -> NEWBORN -> INFANT -> TODDLER -> EARLY_CHILDHOOD.
+PREGNANT -> NEWBORN -> INFANT -> TODDLER -> EARLY_CHILDHOOD ->
+SCHOOL_AGE -> ADOLESCENT.
 """
 
 from __future__ import annotations
@@ -17,16 +18,22 @@ class StageManager:
     Stages are determined by the child's age (or pregnancy status):
     - PREGNANT: Has a due date, has not delivered yet.
     - NEWBORN: 0 to 28 days old.
-    - INFANT: 1 to 12 months old.
-    - TODDLER: 1 to 3 years old.
-    - EARLY_CHILDHOOD: 3 to 5 years old.
+    - INFANT: 29 days to under 12 months old.
+    - TODDLER: 1 to under 3 years old.
+    - EARLY_CHILDHOOD: 3 to under 6 years old.
+    - SCHOOL_AGE: 6 to under 13 years old (6 to 12 years).
+    - ADOLESCENT: 13 to under 18 years old (13 to 17 years).
 
     Example:
         >>> from datetime import date
-        >>> stage = StageManager.determine_stage(child_dob=date(2026, 3, 1))
-        >>> print(stage)
-        Stage.NEWBORN
+        >>> StageManager.determine_stage(child_dob=date(2020, 1, 1)).value
+        'school_age'
     """
+
+    # Age boundaries in complete months (upper bound is exclusive).
+    _EARLY_CHILDHOOD_MAX_MONTHS = 72   # 6 years
+    _SCHOOL_AGE_MAX_MONTHS = 156       # 13 years
+    _ADOLESCENT_MAX_MONTHS = 216       # 18 years
 
     @staticmethod
     def determine_stage(
@@ -48,10 +55,8 @@ class StageManager:
             ValueError: If no dates are provided to determine a stage.
 
         Example:
-            >>> StageManager.determine_stage(due_date=date(2026, 9, 1))
-            Stage.PREGNANT
-            >>> StageManager.determine_stage(child_dob=date(2025, 1, 1))
-            Stage.TODDLER
+            >>> StageManager.determine_stage(due_date=date(2026, 9, 1)).value
+            'pregnant'
         """
         today = date.today()
 
@@ -76,10 +81,17 @@ class StageManager:
             return Stage.INFANT
         if age_months < 36:
             return Stage.TODDLER
-        if age_months < 60:
+        if age_months < StageManager._EARLY_CHILDHOOD_MAX_MONTHS:
             return Stage.EARLY_CHILDHOOD
+        if age_months < StageManager._SCHOOL_AGE_MAX_MONTHS:
+            return Stage.SCHOOL_AGE
+        if age_months < StageManager._ADOLESCENT_MAX_MONTHS:
+            return Stage.ADOLESCENT
 
-        return Stage.EARLY_CHILDHOOD
+        # Children 18 years and older are beyond the maternal-child health
+        # journey; the caller decides how to handle them. We cap at ADOLESCENT
+        # so downstream stage-specific content never raises for older ages.
+        return Stage.ADOLESCENT
 
     @staticmethod
     def should_transition(
@@ -98,11 +110,13 @@ class StageManager:
             The new Stage if a transition is needed, None if no change.
 
         Example:
-            >>> new_stage = StageManager.should_transition(
-            ...     Stage.NEWBORN, child_dob=date(2025, 12, 1)
-            ... )
-            >>> print(new_stage)
-            Stage.INFANT
+            >>> # A child born 8 years ago in EARLY_CHILDHOOD should transition.
+            >>> from datetime import date, timedelta
+            >>> dob = date.today() - timedelta(days=8 * 365)
+            >>> StageManager.should_transition(
+            ...     Stage.EARLY_CHILDHOOD, child_dob=dob
+            ... ).value
+            'school_age'
         """
         try:
             actual_stage = StageManager.determine_stage(
@@ -127,8 +141,8 @@ class StageManager:
 
         Example:
             >>> content = StageManager.get_stage_content(Stage.NEWBORN)
-            >>> print(content["key_topics"])
-            ['breastfeeding', 'cord care', ...]
+            >>> content["key_topics"][0]
+            'breastfeeding'
         """
         content_map: dict[Stage, dict] = {
             Stage.PREGNANT: {
@@ -231,6 +245,60 @@ class StageManager:
                     "screen_time",
                 ],
                 "check_frequency": "Every 6 months, pre-school health check",
+            },
+            # SCHOOL_AGE (6-12y): learning, healthy weight, vision/hearing,
+            # activity, and general (non-IMCI) danger-sign awareness.
+            # pending_clinical_signoff: content set awaits advisory panel review.
+            Stage.SCHOOL_AGE: {
+                "themes": [
+                    "Learning and school progress",
+                    "Healthy weight and active play",
+                    "Vision and hearing checks",
+                    "Dental health",
+                    "Emotional wellbeing and friendships",
+                ],
+                "key_topics": [
+                    "learning_and_school",
+                    "healthy_weight",
+                    "vision_hearing",
+                    "dental_health",
+                    "physical_activity",
+                    "nutrition",
+                    "hygiene_and_handwashing",
+                    "road_and_water_safety",
+                    "emotional_wellbeing",
+                    "danger_signs",
+                ],
+                "check_frequency": "Annual health and growth check; vision/hearing screening",
+                "pending_clinical_signoff": True,
+            },
+            # ADOLESCENT (13-17y): conservative content only. Nutrition,
+            # physical activity, puberty basics, menstrual-health basics,
+            # mental-wellbeing check-in, danger signs. SRH limited to
+            # "talk to a health worker" signposting.
+            # pending_clinical_signoff: content set awaits advisory panel review.
+            Stage.ADOLESCENT: {
+                "themes": [
+                    "Balanced nutrition (including iron for girls)",
+                    "Physical activity and rest",
+                    "Puberty and body changes",
+                    "Menstrual health basics",
+                    "Mental wellbeing check-in",
+                ],
+                "key_topics": [
+                    "nutrition",
+                    "iron_for_girls",
+                    "physical_activity",
+                    "puberty_basics",
+                    "menstrual_health",
+                    "sleep_and_rest",
+                    "hygiene",
+                    "emotional_wellbeing",
+                    "danger_signs",
+                    "talk_to_a_health_worker",
+                ],
+                "check_frequency": "Annual health check; involve a caregiver and health worker",
+                "pending_clinical_signoff": True,
             },
         }
         return content_map[stage]

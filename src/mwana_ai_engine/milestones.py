@@ -1,8 +1,16 @@
-"""Developmental milestone tracking for children 0-60 months.
+"""Developmental milestone tracking for children 0-60 months, plus
+school-age (6-12y) and adolescent (13-17y) wellbeing checkpoints.
 
-Based on WHO/CDC developmental milestones adapted for the
-Zimbabwean context, covering motor, social, cognitive, and
+The 0-60 month milestones are based on WHO/CDC developmental milestones
+adapted for the Zimbabwean context, covering motor, social, cognitive, and
 language domains.
+
+For school-age and adolescent children the concept of "milestone by month X"
+does not apply the same way, so those stages use WELLBEING CHECKPOINTS
+instead: caregiver/self check-in prompts on learning, vision and hearing,
+healthy weight, activity, and emotional wellbeing. These are guidance
+prompts, NOT a clinical developmental screen, and are marked
+pending_clinical_signoff until the advisory panel reviews them.
 """
 
 from __future__ import annotations
@@ -64,6 +72,35 @@ MILESTONES: list[dict] = [
 _DELAY_BUFFER_MONTHS = 3
 
 
+# School-age (6-12y) wellbeing checkpoints. These are caregiver check-in
+# prompts, NOT a developmental screen. A "no" (concern) is a prompt to
+# discuss with a health worker, never an automatic clinical classification.
+# pending_clinical_signoff: awaits advisory panel review.
+SCHOOL_AGE_WELLBEING: list[dict] = [
+    {"key": "learning", "domain": "learning", "prompt": "Is your child keeping up with learning and enjoying school?", "concern_guidance": "If your child is struggling to keep up, seems bored, or does not want to go to school, talk to their teacher and a health worker. Vision or hearing problems can also affect learning."},
+    {"key": "vision", "domain": "vision", "prompt": "Can your child see the board and read without squinting or headaches?", "concern_guidance": "Trouble seeing the board, squinting, sitting very close, or headaches when reading can be signs of a vision problem. A simple eye check at the clinic can help."},
+    {"key": "hearing", "domain": "hearing", "prompt": "Does your child hear well and respond when spoken to normally?", "concern_guidance": "Asking you to repeat things, turning up sound, or ear pain and discharge can be signs of a hearing problem. Ask for a hearing check at the clinic."},
+    {"key": "healthy_weight", "domain": "growth", "prompt": "Is your child growing well, neither too thin nor gaining weight too fast?", "concern_guidance": "Big changes in weight, being much thinner or heavier than other children the same age, or always being tired are worth discussing at a health check. Record weight and height for clinical review rather than judging it at home."},
+    {"key": "physical_activity", "domain": "activity", "prompt": "Is your child active and playing most days?", "concern_guidance": "Children this age do best with about an hour of active play each day. If your child is not active, encourage safe play, walking, and helping with age-appropriate tasks."},
+    {"key": "emotional_wellbeing", "domain": "emotional", "prompt": "Does your child seem happy, settled, and able to make friends?", "concern_guidance": "Being very withdrawn, a big change in mood or behaviour, or trouble making friends can be worth a gentle chat and, if it lasts, a word with a health worker."},
+    {"key": "dental", "domain": "dental", "prompt": "Does your child brush their teeth twice a day and have no tooth pain?", "concern_guidance": "Encourage brushing twice a day. Tooth pain, holes, or bleeding gums need a clinic or dental visit."},
+]
+
+
+# Adolescent (13-17y) wellbeing checkpoints. Conservative content: nutrition,
+# activity, puberty basics, menstrual-health basics, mental wellbeing. Anything
+# beyond basics signposts to a health worker or caregiver. pending_clinical_signoff.
+ADOLESCENT_WELLBEING: list[dict] = [
+    {"key": "nutrition", "domain": "nutrition", "prompt": "Is the young person eating balanced meals most days?", "concern_guidance": "Adolescents grow fast and need balanced meals with enough energy, protein, fruit, and vegetables. Always tired, very pale, or eating very little is worth discussing with a health worker."},
+    {"key": "iron_for_girls", "domain": "nutrition", "prompt": "For girls: are they eating iron-rich foods (beans, green leafy vegetables, meat, liver)?", "concern_guidance": "Girls need extra iron once periods start, to avoid anaemia. Iron-rich foods help. If they are often tired, dizzy, or very pale, a health worker can check for anaemia."},
+    {"key": "physical_activity", "domain": "activity", "prompt": "Is the young person active most days and getting enough rest?", "concern_guidance": "Regular activity and about 8-10 hours of sleep support growth, mood, and concentration. Encourage a balance of activity, study, and rest."},
+    {"key": "puberty", "domain": "puberty", "prompt": "Does the young person understand the body changes of puberty?", "concern_guidance": "Body changes during puberty are normal. Answer questions simply and honestly. For anything you are unsure about, a health worker can give trusted, private information."},
+    {"key": "menstrual_health", "domain": "menstrual", "prompt": "For girls who have started periods: are their periods manageable and hygiene supported?", "concern_guidance": "Basic period hygiene and pain relief usually help. Very painful, very heavy, or missed periods that worry you are worth a visit to a health worker."},
+    {"key": "emotional_wellbeing", "domain": "emotional", "prompt": "Does the young person seem to be coping emotionally?", "concern_guidance": "Feeling very sad, anxious, or overwhelmed for two weeks or more is worth talking about. A trusted adult or health worker can help. Any thoughts of self-harm need help the same day."},
+    {"key": "health_check", "domain": "clinic", "prompt": "Has the young person had a health check this year and any due vaccines?", "concern_guidance": "An annual check is a good chance to review growth, nutrition, mood, and any due vaccines (for example the Td booster, and HPV for girls)."},
+]
+
+
 class DevelopmentalMilestones:
     """Developmental milestone tracking and delay detection.
 
@@ -75,7 +112,7 @@ class DevelopmentalMilestones:
         >>> dm = DevelopmentalMilestones()
         >>> milestones = dm.get_milestones_for_age(6)
         >>> len(milestones)
-        6
+        9
     """
 
     def __init__(self) -> None:
@@ -287,6 +324,84 @@ class DevelopmentalMilestones:
                     ))
 
         return delayed
+
+    @staticmethod
+    def get_school_age_wellbeing_checkpoints() -> list[dict]:
+        """Get the school-age (6-12y) wellbeing check-in prompts.
+
+        These are caregiver check-in prompts on learning, vision, hearing,
+        healthy weight, activity, emotional wellbeing, and dental health.
+        They are guidance prompts, NOT a clinical developmental screen.
+
+        Returns:
+            List of checkpoint dicts with key, domain, prompt, and
+            concern_guidance.
+
+        Example:
+            >>> dm = DevelopmentalMilestones()
+            >>> checks = dm.get_school_age_wellbeing_checkpoints()
+            >>> checks[0]["domain"]
+            'learning'
+        """
+        return [dict(c) for c in SCHOOL_AGE_WELLBEING]
+
+    @staticmethod
+    def get_adolescent_wellbeing_checkpoints() -> list[dict]:
+        """Get the adolescent (13-17y) wellbeing check-in prompts.
+
+        Conservative content: nutrition (including iron for girls), physical
+        activity and rest, puberty basics, menstrual-health basics, emotional
+        wellbeing, and an annual health check. Guidance prompts, not a screen.
+
+        Returns:
+            List of checkpoint dicts with key, domain, prompt, and
+            concern_guidance.
+
+        Example:
+            >>> dm = DevelopmentalMilestones()
+            >>> checks = dm.get_adolescent_wellbeing_checkpoints()
+            >>> checks[0]["domain"]
+            'nutrition'
+        """
+        return [dict(c) for c in ADOLESCENT_WELLBEING]
+
+    @staticmethod
+    def assess_wellbeing(checkpoint_key: str, concern: bool) -> dict:
+        """Return guidance for a single wellbeing checkpoint response.
+
+        A "concern" response never produces an automatic clinical
+        classification. It returns supportive guidance and, where relevant,
+        a prompt to involve a health worker or caregiver.
+
+        Args:
+            checkpoint_key: The checkpoint key (e.g. "vision", "nutrition").
+            concern: True if the caregiver/young person flagged a concern.
+
+        Returns:
+            Dict with keys: key, concern (bool), guidance (str).
+
+        Raises:
+            ValueError: If the checkpoint key is not recognised.
+
+        Example:
+            >>> dm = DevelopmentalMilestones()
+            >>> res = dm.assess_wellbeing("vision", concern=True)
+            >>> res["concern"]
+            True
+        """
+        all_checks = {c["key"]: c for c in (SCHOOL_AGE_WELLBEING + ADOLESCENT_WELLBEING)}
+        check = all_checks.get(checkpoint_key)
+        if check is None:
+            available = ", ".join(sorted(all_checks.keys()))
+            raise ValueError(
+                f"Unknown wellbeing checkpoint '{checkpoint_key}'. "
+                f"Available: {available}"
+            )
+        if concern:
+            guidance = check["concern_guidance"]
+        else:
+            guidance = "Great. Keep it up, and mention anything new at your next health check."
+        return {"key": checkpoint_key, "concern": concern, "guidance": guidance}
 
 
 def _get_guidance(name: str, description: str, status: MilestoneStatus) -> str:

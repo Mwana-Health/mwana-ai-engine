@@ -8,13 +8,28 @@ from enum import Enum
 
 
 class Stage(str, Enum):
-    """Maternal-child health stage from pregnancy through early childhood."""
+    """Maternal-child health stage from pregnancy through adolescence.
+
+    Age boundaries for child stages:
+    - NEWBORN: 0 to 28 days.
+    - INFANT: 29 days to under 12 months.
+    - TODDLER: 12 to under 36 months (1 to under 3 years).
+    - EARLY_CHILDHOOD: 36 to under 72 months (3 to under 6 years).
+    - SCHOOL_AGE: 6 years to under 13 years (6 to 12 years).
+    - ADOLESCENT: 13 years to under 18 years (13 to 17 years).
+
+    Clinical note: WHO IMCI applies only to under-5 children. SCHOOL_AGE and
+    ADOLESCENT stages therefore use general danger-sign guidance, never IMCI
+    breathing-rate or age cutoffs (see ``danger_signs`` and ``triage``).
+    """
 
     PREGNANT = "pregnant"
     NEWBORN = "newborn"
     INFANT = "infant"
     TODDLER = "toddler"
     EARLY_CHILDHOOD = "early_childhood"
+    SCHOOL_AGE = "school_age"
+    ADOLESCENT = "adolescent"
 
 
 class TriageLevel(str, Enum):
@@ -180,6 +195,8 @@ class ImmunizationDue:
         is_overdue: Whether the scheduled date has passed.
         days_until_due: Days until (positive) or since (negative) the scheduled date.
         max_age_months: Maximum age in months for catch-up administration.
+        sex: Who the dose applies to ("any", "female", or "male"). Used to
+            filter sex-specific doses such as HPV for girls.
 
     Example:
         >>> due = ImmunizationDue(
@@ -202,3 +219,4 @@ class ImmunizationDue:
     is_overdue: bool
     days_until_due: int
     max_age_months: int
+    sex: str = "any"

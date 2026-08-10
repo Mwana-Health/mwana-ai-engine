@@ -11,6 +11,22 @@ from datetime import date, timedelta
 from .types import ImmunizationDue
 
 
+# Every entry carries an optional "sex" key ("any" | "female" | "male").
+# When omitted it is treated as "any". This lets consumers filter, for
+# example, girl-only HPV doses.
+#
+# School-age and adolescent entries (Td booster at 10y and HPV for girls at
+# 10y and 11y) were added from the Zimbabwe routine immunisation schedule.
+# Sources verified 2026-08-10:
+#   - Zimbabwe childhood immunisation schedule, Prescribing Companion (Zimbabwe):
+#     Td booster at 5 years AND 10 years; HPV for girls dose 1 at 10 years,
+#     dose 2 at 11 years (0.5ml IM).
+#     https://www.prescribingcompanion.com/zimbabwe/infections-and-infectious-diseases-prescribing/immunisation/immunisation-schedule-for-children/
+#   - Zimbabwe national HPV introduction (bivalent, 0/12-month schedule for
+#     girls 10-14y), PLOS Global Public Health / ScienceDirect (Vaccine, 2021):
+#     https://journals.plos.org/globalpublichealth/article?id=10.1371%2Fjournal.pgph.0000101
+# No other older-child doses are included because they could not be verified
+# in an authoritative Zimbabwe source (constraint: never invent schedule rows).
 ZIMBABWE_EPI: list[dict] = [
     {"code": "BCG", "name": "BCG", "dose": 1, "age_weeks": 0, "max_age_months": 11},
     {"code": "HepB_birth", "name": "Hepatitis B Birth Dose", "dose": 1, "age_weeks": 0, "max_age_months": 1},
@@ -32,6 +48,14 @@ ZIMBABWE_EPI: list[dict] = [
     {"code": "DPT_booster", "name": "DPT Booster", "dose": 1, "age_weeks": 78, "max_age_months": 60},
     {"code": "OPV_booster", "name": "OPV Booster", "dose": 1, "age_weeks": 78, "max_age_months": 60},
     {"code": "Td_booster", "name": "Tetanus-Diphtheria Booster", "dose": 1, "age_weeks": 260, "max_age_months": 72},
+    # --- School-age and adolescent doses (verified, see header note) ---
+    # Td booster #2 at 10 years (520 weeks). Catch-up window extends to ~13y.
+    {"code": "Td_booster2", "name": "Tetanus-Diphtheria Booster (10 years)", "dose": 2, "age_weeks": 520, "max_age_months": 156, "sex": "any"},
+    # HPV for girls: dose 1 at 10 years, dose 2 at 11 years (0/12-month
+    # schedule). National eligibility runs 10-14 years, so the catch-up
+    # window is set to 15 years (180 months).
+    {"code": "HPV1", "name": "HPV Vaccine (girls)", "dose": 1, "age_weeks": 520, "max_age_months": 180, "sex": "female"},
+    {"code": "HPV2", "name": "HPV Vaccine (girls)", "dose": 2, "age_weeks": 572, "max_age_months": 180, "sex": "female"},
 ]
 
 
@@ -45,8 +69,6 @@ class ImmunizationScheduler:
         >>> from datetime import date
         >>> scheduler = ImmunizationScheduler()
         >>> schedule = scheduler.get_schedule(date_of_birth=date(2026, 1, 15))
-        >>> len(schedule)
-        20
         >>> schedule[0].vaccine_code
         'BCG'
     """
@@ -54,11 +76,52 @@ class ImmunizationScheduler:
     def __init__(self) -> None:
         self._schedule = ZIMBABWE_EPI
 
-    def get_schedule(self, date_of_birth: date) -> list[ImmunizationDue]:
+    @staticmethod
+    def _applies_to_sex(vaccine: dict, sex: str | None) -> bool:
+        """Return True if a vaccine applies given the child's sex.
+
+        A vaccine with sex "any" (or no sex key) applies to everyone. A
+        sex-specific vaccine (e.g. HPV "female") is included only when the
+        child's sex matches, or when ``sex`` is None/unknown (in which case
+        we err on the side of surfacing the dose so it is never silently
+        dropped for a child whose sex was not recorded).
+        """
+        vaccine_sex = vaccine.get("sex", "any")
+        if vaccine_sex == "any":
+            return True
+        if sex is None:
+            return True
+        return sex.lower().strip() == vaccine_sex
+
+    @staticmethod
+    def _build_due(
+        vaccine: dict, date_of_birth: date, today: date
+    ) -> ImmunizationDue:
+        """Construct an ImmunizationDue for a vaccine entry."""
+        scheduled_date = date_of_birth + timedelta(weeks=vaccine["age_weeks"])
+        days_until = (scheduled_date - today).days
+        return ImmunizationDue(
+            vaccine_code=vaccine["code"],
+            vaccine_name=vaccine["name"],
+            dose_number=vaccine["dose"],
+            scheduled_age_weeks=vaccine["age_weeks"],
+            scheduled_date=scheduled_date,
+            is_overdue=days_until < 0,
+            days_until_due=days_until,
+            max_age_months=vaccine["max_age_months"],
+            sex=vaccine.get("sex", "any"),
+        )
+
+    def get_schedule(
+        self, date_of_birth: date, sex: str | None = None
+    ) -> list[ImmunizationDue]:
         """Get the full immunization schedule with calculated dates.
 
         Args:
             date_of_birth: The child's date of birth.
+            sex: Child's sex ("female", "male", or None). When provided,
+                sex-specific doses that do not apply are excluded. When None,
+                all doses are included.
 
         Returns:
             List of all scheduled immunizations with calculated due dates.
@@ -72,30 +135,17 @@ class ImmunizationScheduler:
             datetime.date(2026, 1, 15)
         """
         today = date.today()
-        result: list[ImmunizationDue] = []
-
-        for vaccine in self._schedule:
-            scheduled_date = date_of_birth + timedelta(weeks=vaccine["age_weeks"])
-            days_until = (scheduled_date - today).days
-            is_overdue = days_until < 0
-
-            result.append(ImmunizationDue(
-                vaccine_code=vaccine["code"],
-                vaccine_name=vaccine["name"],
-                dose_number=vaccine["dose"],
-                scheduled_age_weeks=vaccine["age_weeks"],
-                scheduled_date=scheduled_date,
-                is_overdue=is_overdue,
-                days_until_due=days_until,
-                max_age_months=vaccine["max_age_months"],
-            ))
-
-        return result
+        return [
+            self._build_due(vaccine, date_of_birth, today)
+            for vaccine in self._schedule
+            if self._applies_to_sex(vaccine, sex)
+        ]
 
     def get_next_due(
         self,
         date_of_birth: date,
         completed_codes: list[str],
+        sex: str | None = None,
     ) -> ImmunizationDue | None:
         """Get the next vaccine that is due.
 
@@ -106,6 +156,8 @@ class ImmunizationScheduler:
         Args:
             date_of_birth: The child's date of birth.
             completed_codes: List of vaccine codes already administered.
+            sex: Child's sex ("female", "male", or None) to filter
+                sex-specific doses such as HPV. None includes all.
 
         Returns:
             The next ImmunizationDue, or None if all vaccines are completed
@@ -131,20 +183,10 @@ class ImmunizationScheduler:
                 continue
             if child_age_months > vaccine["max_age_months"]:
                 continue
+            if not self._applies_to_sex(vaccine, sex):
+                continue
 
-            scheduled_date = date_of_birth + timedelta(weeks=vaccine["age_weeks"])
-            days_until = (scheduled_date - today).days
-
-            candidates.append(ImmunizationDue(
-                vaccine_code=vaccine["code"],
-                vaccine_name=vaccine["name"],
-                dose_number=vaccine["dose"],
-                scheduled_age_weeks=vaccine["age_weeks"],
-                scheduled_date=scheduled_date,
-                is_overdue=days_until < 0,
-                days_until_due=days_until,
-                max_age_months=vaccine["max_age_months"],
-            ))
+            candidates.append(self._build_due(vaccine, date_of_birth, today))
 
         if not candidates:
             return None
@@ -157,12 +199,15 @@ class ImmunizationScheduler:
         self,
         date_of_birth: date,
         completed_codes: list[str],
+        sex: str | None = None,
     ) -> list[ImmunizationDue]:
         """Get all overdue vaccines that are still within catch-up age.
 
         Args:
             date_of_birth: The child's date of birth.
             completed_codes: List of vaccine codes already administered.
+            sex: Child's sex ("female", "male", or None) to filter
+                sex-specific doses such as HPV. None includes all.
 
         Returns:
             List of overdue ImmunizationDue items, sorted by scheduled date.
@@ -186,21 +231,12 @@ class ImmunizationScheduler:
                 continue
             if child_age_months > vaccine["max_age_months"]:
                 continue
+            if not self._applies_to_sex(vaccine, sex):
+                continue
 
-            scheduled_date = date_of_birth + timedelta(weeks=vaccine["age_weeks"])
-            days_until = (scheduled_date - today).days
-
-            if days_until < 0:
-                result.append(ImmunizationDue(
-                    vaccine_code=vaccine["code"],
-                    vaccine_name=vaccine["name"],
-                    dose_number=vaccine["dose"],
-                    scheduled_age_weeks=vaccine["age_weeks"],
-                    scheduled_date=scheduled_date,
-                    is_overdue=True,
-                    days_until_due=days_until,
-                    max_age_months=vaccine["max_age_months"],
-                ))
+            due = self._build_due(vaccine, date_of_birth, today)
+            if due.is_overdue:
+                result.append(due)
 
         result.sort(key=lambda v: v.scheduled_date)
         return result
@@ -209,6 +245,7 @@ class ImmunizationScheduler:
         self,
         date_of_birth: date,
         completed_codes: list[str],
+        sex: str | None = None,
     ) -> list[ImmunizationDue]:
         """Get a catch-up schedule for missed vaccines still within max age.
 
@@ -219,6 +256,8 @@ class ImmunizationScheduler:
         Args:
             date_of_birth: The child's date of birth.
             completed_codes: List of vaccine codes already administered.
+            sex: Child's sex ("female", "male", or None) to filter
+                sex-specific doses such as HPV. None includes all.
 
         Returns:
             List of vaccines to catch up on, sorted by scheduled date.
@@ -240,20 +279,10 @@ class ImmunizationScheduler:
                 continue
             if child_age_months > vaccine["max_age_months"]:
                 continue
+            if not self._applies_to_sex(vaccine, sex):
+                continue
 
-            scheduled_date = date_of_birth + timedelta(weeks=vaccine["age_weeks"])
-            days_until = (scheduled_date - today).days
-
-            result.append(ImmunizationDue(
-                vaccine_code=vaccine["code"],
-                vaccine_name=vaccine["name"],
-                dose_number=vaccine["dose"],
-                scheduled_age_weeks=vaccine["age_weeks"],
-                scheduled_date=scheduled_date,
-                is_overdue=days_until < 0,
-                days_until_due=days_until,
-                max_age_months=vaccine["max_age_months"],
-            ))
+            result.append(self._build_due(vaccine, date_of_birth, today))
 
         result.sort(key=lambda v: v.scheduled_date)
         return result

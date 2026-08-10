@@ -89,6 +89,34 @@ _STAGE_RED_SYMPTOMS: dict[Stage, set[str]] = {
         "poisoning",
         "drowning_signs",
     },
+    # SCHOOL_AGE (6-12y) and ADOLESCENT (13-17y) use GENERAL danger signs.
+    # No IMCI breathing-rate or age cutoffs. See danger_signs.py.
+    Stage.SCHOOL_AGE: {
+        "severe_difficulty_breathing",
+        "severe_dehydration",
+        "high_persistent_fever",
+        "severe_injury",
+        "severe_burn",
+        "poisoning",
+        "drowning_signs",
+        "severe_abdominal_pain",
+        "bloody_diarrhea",
+        "stiff_neck",
+        "heavy_bleeding",
+    },
+    Stage.ADOLESCENT: {
+        "severe_difficulty_breathing",
+        "severe_dehydration",
+        "high_persistent_fever",
+        "severe_injury",
+        "severe_burn",
+        "poisoning",
+        "severe_abdominal_pain",
+        "chest_pain",
+        "heavy_bleeding",
+        "self_harm_thoughts",
+        "stiff_neck",
+    },
 }
 
 # Stage-specific YELLOW symptoms (clinic within 24-48 hours).
@@ -164,6 +192,31 @@ _STAGE_YELLOW_SYMPTOMS: dict[Stage, set[str]] = {
         "hearing_concern",
         "behavioral_regression",
     },
+    Stage.SCHOOL_AGE: {
+        "persistent_fever",
+        "fever_persistent",
+        "persistent_diarrhea",
+        "diarrhea_persistent",
+        "persistent_cough",
+        "vision_concern",
+        "hearing_concern",
+        "poor_weight_gain",
+        "weight_loss",
+        "learning_or_mood_concern",
+        "ear_discharge",
+        "limping",
+    },
+    Stage.ADOLESCENT: {
+        "persistent_fever",
+        "fever_persistent",
+        "persistent_cough",
+        "mood_or_wellbeing_concern",
+        "nutrition_concern",
+        "weight_loss",
+        "menstrual_concern",
+        "vision_concern",
+        "hearing_concern",
+    },
 }
 
 # GREEN symptoms (home care + guidance).
@@ -214,6 +267,17 @@ _RED_ACTIONS: dict[Stage, str] = {
         "Take your child to the nearest clinic or hospital IMMEDIATELY. "
         "If the child can drink, give small sips of ORS on the way."
     ),
+    Stage.SCHOOL_AGE: (
+        "Take your child to the nearest clinic or hospital IMMEDIATELY. "
+        "Do not wait. Stay with them and keep them calm. If they can drink, "
+        "give small sips of water or ORS on the way."
+    ),
+    Stage.ADOLESCENT: (
+        "Get to the nearest clinic or hospital IMMEDIATELY. Do not wait. "
+        "If this is about thoughts of self-harm, tell a trusted adult or "
+        "health worker today and stay with someone. You are not alone and "
+        "help is available."
+    ),
 }
 
 _YELLOW_ACTIONS: dict[Stage, str] = {
@@ -236,6 +300,17 @@ _YELLOW_ACTIONS: dict[Stage, str] = {
     Stage.EARLY_CHILDHOOD: (
         "Visit your clinic within 24-48 hours. Ensure your child drinks "
         "enough fluids. Give ORS if there is diarrhea. Monitor temperature."
+    ),
+    Stage.SCHOOL_AGE: (
+        "Visit your clinic within 24-48 hours. Make sure your child rests, "
+        "drinks enough fluids, and eats well. If the symptoms get worse, "
+        "go to the hospital immediately."
+    ),
+    Stage.ADOLESCENT: (
+        "Visit your clinic within 24-48 hours, and involve a caregiver. "
+        "Encourage rest, fluids, and good meals. For worries about mood, "
+        "periods, or body changes, a health worker can help. If things get "
+        "worse, go to the hospital immediately."
     ),
 }
 
@@ -263,6 +338,16 @@ _GREEN_ACTIONS: dict[Stage, str] = {
         "Your child can be cared for at home. Ensure they drink enough fluids "
         "and eat well. If symptoms persist beyond 3 days or worsen, visit your clinic."
     ),
+    Stage.SCHOOL_AGE: (
+        "Your child can be cared for at home. Ensure they rest, drink enough "
+        "fluids, and eat well. If symptoms persist beyond 3 days or worsen, "
+        "visit your clinic."
+    ),
+    Stage.ADOLESCENT: (
+        "This can usually be managed at home with rest, fluids, and good "
+        "meals. If symptoms persist beyond a few days or worsen, or if you "
+        "are worried, talk to a health worker."
+    ),
 }
 
 
@@ -278,15 +363,15 @@ class TriageEngine:
         ...     symptoms=["convulsions"],
         ...     stage=Stage.NEWBORN,
         ... )
-        >>> result.level
-        TriageLevel.RED
+        >>> result.level.value
+        'red'
         >>> result = TriageEngine.triage(
         ...     symptoms=["common_cold", "runny_nose"],
         ...     stage=Stage.INFANT,
         ...     child_age_months=8,
         ... )
-        >>> result.level
-        TriageLevel.GREEN
+        >>> result.level.value
+        'green'
     """
 
     @staticmethod
@@ -313,8 +398,8 @@ class TriageEngine:
             ...     stage=Stage.PREGNANT,
             ...     pregnancy_week=32,
             ... )
-            >>> result.level
-            TriageLevel.RED
+            >>> result.level.value
+            'red'
         """
         symptom_set = set(s.lower().strip() for s in symptoms)
 

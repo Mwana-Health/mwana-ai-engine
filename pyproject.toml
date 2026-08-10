@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "mwana-ai-engine"
-version = "0.1.0"
+version = "0.2.0"
 description = "Reusable maternal-child health AI engine for Zimbabwe"
 readme = "README.md"
 license = {text = "Apache-2.0"}
@@ -36,10 +36,16 @@ classifiers = [
     "Typing :: Typed",
 ]
 
+[project.optional-dependencies]
+test = ["pytest>=7.0"]
+
 [project.urls]
 Homepage = "https://mwanahealth.com"
 Repository = "https://github.com/Mwana-Health/mwana-ai-engine"
 Issues = "https://github.com/Mwana-Health/mwana-ai-engine/issues"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
 
 [tool.setuptools.packages.find]
 where = ["src"]

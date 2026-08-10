@@ -61,6 +61,33 @@ result = epds.interpret_score(score)
 print(result["level"])  # "low"
 ```
 
+## Care stages
+
+The engine models the maternal-child health journey as a sequence of stages.
+`StageManager.determine_stage(...)` selects the stage from pregnancy status or
+the child's age.
+
+| Stage | Age range | Notes |
+|-------|-----------|-------|
+| `PREGNANT` | Before delivery | Antenatal care, danger signs |
+| `NEWBORN` | 0 to 28 days | WHO IMCI applies |
+| `INFANT` | 29 days to under 12 months | WHO IMCI applies |
+| `TODDLER` | 1 to under 3 years | WHO IMCI applies |
+| `EARLY_CHILDHOOD` | 3 to under 6 years | WHO IMCI applies (under-5) |
+| `SCHOOL_AGE` | 6 to under 13 years (6-12) | General danger signs, **not** IMCI |
+| `ADOLESCENT` | 13 to under 18 years (13-17) | General danger signs, conservative content |
+
+**Clinical safety note:** WHO IMCI (breathing-rate and age cutoffs) is designed
+for children under 5. The `SCHOOL_AGE` and `ADOLESCENT` stages therefore use
+general danger-sign guidance only (severe difficulty breathing, convulsions,
+unresponsiveness, severe dehydration, high persistent fever, severe injury),
+never IMCI cutoffs. When triage is uncertain the result defaults to `YELLOW`
+(never green); `RED` always refers. Growth for 5-19 year-olds uses WHO
+BMI-for-age (a different standard, not bundled), so `assess_growth` records
+older children's measurements without applying under-5 z-scores and flags them
+for clinical review. School-age and adolescent content sets carry a
+`pending_clinical_signoff` marker pending advisory-panel review.
+
 ## Modules
 
 | Module | Class | Purpose |
