@@ -124,4 +124,4 @@ If you use this software, please include the NOTICE file and attribute:
 
 > Powered by [Mwana AI Engine](https://github.com/Mwana-Health/mwana-ai-engine)
 
-"Mwana Health" and the Mwana Health logo are trademarks of Mwana Technologies (Pvt) Ltd. See NOTICE for trademark policy.
+"Mwana Health" and the Mwana Health logo are trademarks of Chasiah Technologies (Private) Limited. See NOTICE for trademark policy.
