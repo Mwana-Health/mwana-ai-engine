@@ -7,7 +7,7 @@ Built on WHO IMCI guidelines, the Zimbabwe Expanded Programme on Immunization (E
 ## Installation
 
 ```bash
-pip install mwana-ai-engine
+pip install git+https://github.com/Mwana-Health/mwana-ai-engine.git
 ```
 
 ## Quick Start
